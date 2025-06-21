@@ -1,0 +1,9 @@
+node_modules/
+pkg-cache/
+.supabase/
+supabase.sql
+kouzou.text
+*.exe
+build/
+dist/
+README.md
