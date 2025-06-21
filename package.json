@@ -1,29 +1,41 @@
 {
-  "name": "cppchat",
+  "name": "cppchat-app",
   "version": "1.0.0",
-  "description": "A terminal-based chat application.",
-  "main": "dist/main.js",
+  "description": "A simple chat application built with Node.js and packaged with pkg.",
+  "main": "src/index.js",
   "scripts": {
-    "start": "node dist/main.js",
-    "build": "tsc",
-    "dev": "ts-node src/main.ts",
-    "pkg": "pkg . --targets node16-win-x64 --output cppchat.exe"
+    "start": "node src/index.js",
+    "build": "pkg .",
+    "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "bcrypt": "^5.1.1",
-    "blessed": "^0.1.81",
-    "dotenv": "^16.4.5",
-    "@supabase/supabase-js": "^2.43.4"
+    "express": "^4.21.2",
+    "nodemon": "^3.1.10",
+    "socket.io": "^4.8.1"
   },
   "devDependencies": {
-    "@types/blessed": "^0.1.25",
-    "@types/node": "^20.14.0",
-    "@types/bcrypt": "^5.0.2",
-    "pkg": "^5.8.1",
-    "ts-node": "^10.9.2",
-    "typescript": "^5.4.5"
-  }
+    "pkg": "^5.8.1"
+  },
+  "bin": {
+    "cppchat-app": "src/index.js"
+  },
+  "pkg": {
+    "scripts": "src/**/*.js",
+    "assets": "public/**/*",
+    "targets": [
+      "node18-win-x64"
+    ]
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/puyokura/cppchat.git"
+  },
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/puyokura/cppchat/issues"
+  },
+  "homepage": "https://github.com/puyokura/cppchat#readme"
 }
