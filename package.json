@@ -1,0 +1,29 @@
+{
+  "name": "cppchat",
+  "version": "1.0.0",
+  "description": "A terminal-based chat application.",
+  "main": "dist/main.js",
+  "scripts": {
+    "start": "node dist/main.js",
+    "build": "tsc",
+    "dev": "ts-node src/main.ts",
+    "pkg": "pkg . --targets node16-win-x64 --output cppchat.exe"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "bcrypt": "^5.1.1",
+    "blessed": "^0.1.81",
+    "dotenv": "^16.4.5",
+    "@supabase/supabase-js": "^2.43.4"
+  },
+  "devDependencies": {
+    "@types/blessed": "^0.1.25",
+    "@types/node": "^20.14.0",
+    "@types/bcrypt": "^5.0.2",
+    "pkg": "^5.8.1",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.4.5"
+  }
+}
