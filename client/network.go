@@ -28,12 +28,34 @@ func (n *Network) Connect(host string) error {
 		n.conn.Close()
 	}
 
-	// Default port 8999 if not specified
-	if !strings.Contains(host, ":") {
-		host = host + ":8999"
+	// Handle URL schemes and ports
+	var u url.URL
+	if strings.Contains(host, "://") {
+		parsed, err := url.Parse(host)
+		if err != nil {
+			return err
+		}
+		u = *parsed
+		if u.Scheme == "http" {
+			u.Scheme = "ws"
+		} else if u.Scheme == "https" {
+			u.Scheme = "wss"
+		}
+	} else {
+		// No scheme provided
+		u.Scheme = "ws"
+		u.Host = host
+		// Add default port if not present
+		if !strings.Contains(host, ":") {
+			u.Host = host + ":8999"
+		}
 	}
 
-	u := url.URL{Scheme: "ws", Host: host, Path: "/ws"}
+	// Ensure path is /ws
+	if u.Path == "" || u.Path == "/" {
+		u.Path = "/ws"
+	}
+
 	log.Printf("connecting to %s", u.String())
 
 	c, _, err := websocket.DefaultDialer.Dial(u.String(), nil)

@@ -13,12 +13,12 @@ func main() {
 	// flag.Parse()
 
 	// Setup logging
-	f, err := tea.LogToFile("client.log", "debug")
-	if err != nil {
-		fmt.Println("fatal:", err)
-		os.Exit(1)
-	}
-	defer f.Close()
+	// f, err := tea.LogToFile("client.log", "debug")
+	// if err != nil {
+	// 	fmt.Println("fatal:", err)
+	// 	os.Exit(1)
+	// }
+	// defer f.Close()
 
 	net := NewNetwork()
 	// defer net.Close() // Close when quitting

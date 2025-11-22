@@ -158,7 +158,6 @@ func (s *Store) AddMessage(msg model.Message) error {
 		return err
 	}
 	return os.WriteFile(s.msgFile, data, 0644)
-	return os.WriteFile(s.msgFile, data, 0644)
 }
 
 func (s *Store) GetMessages() []model.Message {

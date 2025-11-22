@@ -157,6 +157,7 @@ func main() {
 		<-stop
 		fmt.Println("\nShutting down server...")
 		compressLog()
+		os.Remove("logs/server.log")
 		os.Exit(0)
 	}()
 

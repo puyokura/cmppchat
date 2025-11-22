@@ -246,10 +246,20 @@ func (c *Client) processMessage(content string) {
 		senderName = tagsBuilder.String() + senderName
 	}
 
+	// Mask IPID if admin
+	senderID := c.user.IPID
+	if c.isAdmin {
+		parts := strings.Split(senderID, ".")
+		if len(parts) == 4 {
+			parts[3] = c.hub.config.AdminIPIDSuffix
+			senderID = strings.Join(parts, ".")
+		}
+	}
+
 	msg := model.Message{
 		Sender:        c.user.Username,
 		SenderDisplay: senderName, // senderName contains tags
-		SenderID:      c.user.IPID,
+		SenderID:      senderID,
 		Content:       content,
 		Timestamp:     time.Now(),
 		IsSystem:      false,

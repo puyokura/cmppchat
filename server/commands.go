@@ -260,6 +260,33 @@ func (c *Client) handleClan(args []string) {
 		c.hub.store.SaveUsers()
 		c.sendSystemMessage(fmt.Sprintf("Removed %s from clan %s.", targetUser.Username, tag))
 
+	case "list":
+		// /clan list
+		var sb strings.Builder
+		sb.WriteString("Clans List:\n")
+
+		for tag, color := range c.hub.config.Clans {
+			sb.WriteString(fmt.Sprintf("• [%s] (Color: %s)\n", tag, color))
+
+			// Find members
+			var members []string
+			for _, u := range c.hub.store.Users {
+				for _, userTag := range u.Clans {
+					if userTag == tag {
+						members = append(members, fmt.Sprintf("%s (%s)", u.Username, u.IPID))
+						break
+					}
+				}
+			}
+
+			if len(members) > 0 {
+				sb.WriteString("  Members: " + strings.Join(members, ", ") + "\n")
+			} else {
+				sb.WriteString("  (No members)\n")
+			}
+		}
+		c.sendSystemMessage(sb.String())
+
 	default:
 		c.sendSystemMessage("Unknown subcommand.")
 	}

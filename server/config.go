@@ -7,25 +7,27 @@ import (
 )
 
 type Config struct {
-	AdminPassword  string            `json:"admin_password"`
-	Port           string            `json:"port"`
-	Host           string            `json:"host"`
-	WelcomeMessage string            `json:"welcome_message"`
-	BannedIPIDs    []string          `json:"banned_ip_ids"`
-	Clans          map[string]string `json:"clans"` // Tag -> HexColor
-	mu             sync.RWMutex
-	configFile     string
+	AdminPassword   string            `json:"admin_password"`
+	Port            string            `json:"port"`
+	Host            string            `json:"host"`
+	WelcomeMessage  string            `json:"welcome_message"`
+	BannedIPIDs     []string          `json:"banned_ip_ids"`
+	Clans           map[string]string `json:"clans"` // Tag -> HexColor
+	AdminIPIDSuffix string            `json:"admin_ipid_suffix"`
+	mu              sync.RWMutex
+	configFile      string
 }
 
 func NewConfig(filename string) *Config {
 	return &Config{
-		AdminPassword:  "admin",
-		Port:           "8999",
-		Host:           "", // Empty means all interfaces
-		WelcomeMessage: "Welcome to CMPPChat! Type /help for commands.",
-		BannedIPIDs:    []string{},
-		Clans:          make(map[string]string),
-		configFile:     filename,
+		AdminPassword:   "admin",
+		Port:            "8999",
+		Host:            "", // Empty means all interfaces
+		WelcomeMessage:  "Welcome to CMPPChat! Type /help for commands.",
+		BannedIPIDs:     []string{},
+		Clans:           make(map[string]string),
+		AdminIPIDSuffix: "555",
+		configFile:      filename,
 	}
 }
 
@@ -101,7 +103,6 @@ func (c *Config) Unban(ipid string) error {
 		}
 	}
 	c.BannedIPIDs = newBanned
-	return c.saveInternal()
 	return c.saveInternal()
 }
 
