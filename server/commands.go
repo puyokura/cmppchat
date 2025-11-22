@@ -155,12 +155,16 @@ func (c *Client) handleClan(args []string) {
 		c.sendSystemMessage("Admin only.")
 		return
 	}
-	if len(args) < 2 {
-		c.sendSystemMessage("Usage: /clan <create|add|remove> ...")
+	if len(args) < 1 {
+		c.sendSystemMessage("Usage: /clan <create|add|remove|list> ...")
 		return
 	}
 
 	subCmd := args[0]
+	if subCmd != "list" && len(args) < 2 {
+		c.sendSystemMessage("Usage: /clan <create|add|remove> ...")
+		return
+	}
 	switch subCmd {
 	case "create":
 		// /clan create <tag> <color>

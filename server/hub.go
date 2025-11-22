@@ -344,38 +344,5 @@ func (h *Hub) BroadcastSystemMessage(msg string) {
 }
 
 func (c *Client) SendHistory() {
-	go func() {
-		defer func() {
-			if r := recover(); r != nil {
-				log.Printf("Recovered from panic in SendHistory: %v", r)
-			}
-		}()
-
-		messages := c.hub.store.GetMessages()
-		log.Printf("Sending %d history messages to client", len(messages))
-
-		for i, msg := range messages {
-			event := model.Event{
-				Type:    model.EventMessage,
-				Payload: msg,
-			}
-			bytes, _ := json.Marshal(event)
-
-			// Non-blocking send to avoid deadlock
-			select {
-			case c.send <- bytes:
-				// Sent successfully
-			default:
-				// Channel full, skip this message
-				log.Printf("Skipped history message %d (channel full)", i)
-			}
-
-			// Small delay to avoid flooding client
-			if i < len(messages)-1 {
-				time.Sleep(5 * time.Millisecond)
-			}
-		}
-
-		log.Printf("Finished sending history to client")
-	}()
+	// History is now fetched via API by the client
 }

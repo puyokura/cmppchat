@@ -3,7 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"log"
+	"net/http"
 	"net/url"
 	"strings"
 
@@ -55,8 +55,6 @@ func (n *Network) Connect(host string) error {
 	if u.Path == "" || u.Path == "/" {
 		u.Path = "/ws"
 	}
-
-	log.Printf("connecting to %s", u.String())
 
 	c, _, err := websocket.DefaultDialer.Dial(u.String(), nil)
 	if err != nil {
@@ -129,3 +127,45 @@ func (n *Network) SendMessage(content string) tea.Cmd {
 }
 
 type errMsg error
+
+func (n *Network) FetchMessages(host string) ([]model.Message, error) {
+	// Handle URL schemes
+	if !strings.Contains(host, "://") {
+		host = "http://" + host
+	} else {
+		host = strings.Replace(host, "ws://", "http://", 1)
+		host = strings.Replace(host, "wss://", "https://", 1)
+	}
+
+	// Ensure port if not present (and not standard ports)
+	if !strings.Contains(host, ":") && !strings.Contains(host, "http") { // simplistic check
+		host = host + ":8999"
+	} else if !strings.Contains(host, ":") && strings.Contains(host, "localhost") {
+		host = host + ":8999"
+	}
+
+	// Construct API URL
+	// Remove /ws if present
+	host = strings.Replace(host, "/ws", "", 1)
+	// Ensure no trailing slash
+	host = strings.TrimSuffix(host, "/")
+
+	apiURL := host + "/api/messages"
+
+	resp, err := http.Get(apiURL)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("API error: %s", resp.Status)
+	}
+
+	var messages []model.Message
+	if err := json.NewDecoder(resp.Body).Decode(&messages); err != nil {
+		return nil, err
+	}
+
+	return messages, nil
+}

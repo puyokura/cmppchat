@@ -4,6 +4,7 @@ import (
 	"archive/tar"
 	"bufio"
 	"compress/gzip"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"io"
@@ -134,6 +135,20 @@ func main() {
 
 	http.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
 		serveWs(hub, w, r)
+	})
+
+	http.HandleFunc("/api/messages", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("Access-Control-Allow-Origin", "*") // Allow CORS
+
+		messages := store.GetMessages()
+		// Optional: limit query param ?limit=100
+		// For now return all
+
+		if err := json.NewEncoder(w).Encode(messages); err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
 	})
 
 	serverAddr := fmt.Sprintf("%s:%s", config.Host, config.Port)

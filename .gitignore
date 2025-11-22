@@ -1,1 +1,5 @@
 test/
+users.json
+serverconfig.json
+messages.json
+logs/
