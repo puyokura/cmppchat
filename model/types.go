@@ -5,6 +5,7 @@ import "time"
 // User represents a chat user.
 type User struct {
 	Username     string   `json:"username"`
+	DisplayName  string   `json:"display_name"`  // Custom display name
 	PasswordHash string   `json:"password_hash"` // Stored as hash
 	IPID         string   `json:"ip_id"`         // 15 chars fixed length like "XXX.XXX.XXX.XXX"
 	Clans        []string `json:"clans"`         // List of clan tags

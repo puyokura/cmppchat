@@ -110,11 +110,27 @@ func (c *Client) handleName(args []string) {
 		c.sendSystemMessage("You must be logged in to change name.")
 		return
 	}
-	if len(args) != 1 {
+	if len(args) < 1 {
 		c.sendSystemMessage("Usage: /name <new_name>")
 		return
 	}
-	c.sendSystemMessage("Name change is not supported in this version (Username is your ID).")
+
+	newName := strings.Join(args, " ")
+	if len(newName) > 20 {
+		c.sendSystemMessage("Name too long (max 20 chars).")
+		return
+	}
+
+	oldName := c.user.DisplayName
+	if oldName == "" {
+		oldName = c.user.Username
+	}
+
+	c.user.DisplayName = newName
+	c.hub.store.SaveUsers()
+
+	c.sendSystemMessage(fmt.Sprintf("Name changed from %s to %s", oldName, newName))
+	log.Printf("User %s changed name to %s", c.user.Username, newName)
 }
 
 func (c *Client) handleHelp() {

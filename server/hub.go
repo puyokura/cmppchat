@@ -234,6 +234,10 @@ func (c *Client) processMessage(content string) {
 
 	// Format sender with clans
 	senderName := c.user.Username
+	if c.user.DisplayName != "" {
+		senderName = c.user.DisplayName
+	}
+
 	if len(c.user.Clans) > 0 {
 		var tagsBuilder strings.Builder
 		tagsBuilder.WriteString("[")
@@ -258,7 +262,7 @@ func (c *Client) processMessage(content string) {
 
 	msg := model.Message{
 		Sender:        c.user.Username,
-		SenderDisplay: senderName, // senderName contains tags
+		SenderDisplay: senderName, // senderName contains tags and display name
 		SenderID:      senderID,
 		Content:       content,
 		Timestamp:     time.Now(),
@@ -266,6 +270,9 @@ func (c *Client) processMessage(content string) {
 	}
 
 	c.hub.store.AddMessage(msg)
+
+	// Log the message
+	log.Printf("Message from %s (%s): %s", c.user.Username, c.user.IPID, content)
 
 	// Broadcast
 	broadcastEvent := model.Event{

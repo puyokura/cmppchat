@@ -57,7 +57,7 @@ func initialModel(net *Network) modelState {
 }
 
 func (m modelState) Init() tea.Cmd {
-	return textinput.Blink
+	return tea.Batch(textinput.Blink, tea.EnableMouseCellMotion)
 }
 
 func (m modelState) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -78,49 +78,50 @@ func (m modelState) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	)
 
 	switch msg := msg.(type) {
+	case tea.MouseMsg:
+		m.viewport, vpCmd = m.viewport.Update(msg)
+		return m, vpCmd
+
 	case tea.KeyMsg:
 		switch msg.Type {
 		case tea.KeyCtrlC, tea.KeyEsc:
 			return m, tea.Quit
 		case tea.KeyUp:
-			if m.historyIdx < len(m.cmdHistory)-1 {
-				m.historyIdx++
-				// History is stored newest last. But usually Up means "previous command" (older).
-				// Let's store history: [oldest, ..., newest]
-				// Up should go: newest -> oldest
-				// So index should start at len and go down?
-				// Or standard shell behavior:
-				// Idx = -1 (empty)
-				// Up -> Idx = len-1 (newest)
-				// Up -> Idx = len-2
-				// Down -> Idx++
+			// History: Newest -> Oldest
+			// cmdHistory: [oldest, ..., newest]
+			// historyIdx: current index being viewed. -1 means "current input" (not in history).
 
-				// Let's fix the logic:
-				// historyIdx points to the current history item being viewed. -1 means "current input".
+			if len(m.cmdHistory) == 0 {
+				break
+			}
 
-				if m.historyIdx == -1 {
-					// Save current input? Maybe not needed for simple version
-					m.historyIdx = len(m.cmdHistory) - 1
-				} else if m.historyIdx > 0 {
-					m.historyIdx--
-				}
+			if m.historyIdx == -1 {
+				// Start from newest
+				m.historyIdx = len(m.cmdHistory) - 1
+			} else if m.historyIdx > 0 {
+				// Go older
+				m.historyIdx--
+			}
 
-				if m.historyIdx >= 0 && m.historyIdx < len(m.cmdHistory) {
-					m.textInput.SetValue(m.cmdHistory[m.historyIdx])
-					m.textInput.CursorEnd()
-				}
+			if m.historyIdx >= 0 && m.historyIdx < len(m.cmdHistory) {
+				m.textInput.SetValue(m.cmdHistory[m.historyIdx])
+				m.textInput.CursorEnd()
 			}
 
 		case tea.KeyDown:
-			if m.historyIdx != -1 {
+			// History: Oldest -> Newest
+			if len(m.cmdHistory) == 0 || m.historyIdx == -1 {
+				break
+			}
+
+			if m.historyIdx < len(m.cmdHistory)-1 {
 				m.historyIdx++
-				if m.historyIdx >= len(m.cmdHistory) {
-					m.historyIdx = -1
-					m.textInput.SetValue("")
-				} else {
-					m.textInput.SetValue(m.cmdHistory[m.historyIdx])
-					m.textInput.CursorEnd()
-				}
+				m.textInput.SetValue(m.cmdHistory[m.historyIdx])
+				m.textInput.CursorEnd()
+			} else {
+				// Back to current input (empty for now, or we could save it)
+				m.historyIdx = -1
+				m.textInput.SetValue("")
 			}
 
 		case tea.KeyTab:
@@ -421,7 +422,17 @@ func formatMessage(msg model.Message, width int) string {
 	if len(lines) > 0 {
 		result.WriteString(lines[0])
 	}
-	result.WriteString("\n")
+	// result.WriteString("\n") // Removed extra newline logic, handled by join or caller?
+	// Actually, viewport expects lines separated by newline.
+	// If we return a single string for one message, it should not end with newline if we join with newline in Update.
+	// In Update: strings.Join(m.messages, "\n")
+	// So formatMessage should return a string that represents the message block.
+	// If it has multiple lines, they should be separated by \n.
+	// But we don't need a trailing \n.
+
+	// Let's restructure:
+	// The loop above adds \n before subsequent lines.
+	// So we just need to ensure we don't add trailing \n.
 
 	// Subsequent lines
 	// │       │                 │                 │
@@ -441,9 +452,9 @@ func formatMessage(msg model.Message, width int) string {
 		vLine)
 
 	for i := 1; i < len(lines); i++ {
+		result.WriteString("\n") // Newline before next line content
 		result.WriteString(emptyPrefix)
 		result.WriteString(lines[i])
-		result.WriteString("\n")
 	}
 
 	return result.String()
