@@ -18,6 +18,7 @@ type Message struct {
 	SenderDisplay string    `json:"sender_display"` // Username with clan tags/colors
 	SenderID      string    `json:"sender_id"`      // IPID
 	Content       string    `json:"content"`
+	Room          string    `json:"room"` // Chat room name
 	Timestamp     time.Time `json:"timestamp"`
 	IsSystem      bool      `json:"is_system"` // True if it's a system message
 }

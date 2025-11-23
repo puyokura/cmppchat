@@ -14,20 +14,28 @@ type Config struct {
 	BannedIPIDs     []string          `json:"banned_ip_ids"`
 	Clans           map[string]string `json:"clans"` // Tag -> HexColor
 	AdminIPIDSuffix string            `json:"admin_ipid_suffix"`
+	ServerName      string            `json:"server_name"`
+	Rooms           []string          `json:"rooms"`
 	mu              sync.RWMutex
 	configFile      string
 }
 
 func NewConfig(filename string) *Config {
+	if filename == "" {
+		filename = "server_config.json"
+	}
 	return &Config{
-		AdminPassword:   "admin",
+		configFile: filename,
+		// Defaults
 		Port:            "8999",
-		Host:            "", // Empty means all interfaces
+		Host:            "localhost",
+		AdminPassword:   "admin",
 		WelcomeMessage:  "Welcome to CMPPChat! Type /help for commands.",
 		BannedIPIDs:     []string{},
 		Clans:           make(map[string]string),
-		AdminIPIDSuffix: "555",
-		configFile:      filename,
+		AdminIPIDSuffix: "1",
+		ServerName:      "CMPPChat Server",
+		Rooms:           []string{"general"},
 	}
 }
 
@@ -124,4 +132,42 @@ func (c *Config) GetClanColor(tag string) string {
 		return color
 	}
 	return "#FFFFFF" // Default white
+}
+
+func (c *Config) AddRoom(name string) error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	for _, r := range c.Rooms {
+		if r == name {
+			return nil // Already exists
+		}
+	}
+	c.Rooms = append(c.Rooms, name)
+	return c.saveInternal()
+}
+
+func (c *Config) RemoveRoom(name string) error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	var newRooms []string
+	for _, r := range c.Rooms {
+		if r != name {
+			newRooms = append(newRooms, r)
+		}
+	}
+	c.Rooms = newRooms
+	return c.saveInternal()
+}
+
+func (c *Config) RoomExists(name string) bool {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	for _, r := range c.Rooms {
+		if r == name {
+			return true
+		}
+	}
+	return false
 }

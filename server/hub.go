@@ -43,6 +43,9 @@ type Client struct {
 
 	// Admin status
 	isAdmin bool
+
+	// Current room
+	Room string
 }
 
 // Hub maintains the set of active clients and broadcasts messages to the clients.
@@ -82,13 +85,54 @@ func (h *Hub) Run() {
 			}
 			h.mu.Unlock()
 		case message := <-h.broadcast:
+			// We need to decode the message to check the room?
+			// Or we can change broadcast channel to accept a struct with Room info?
+			// But broadcast is []byte.
+			// Let's decode it partially or assume we can peek?
+			// Actually, it's better to change broadcast to a struct or decode here.
+			// Decoding every time is expensive?
+			// Let's just decode it.
+
+			var event model.Event
+			if err := json.Unmarshal(message, &event); err != nil {
+				log.Printf("Error unmarshalling broadcast message: %v", err)
+				continue
+			}
+
+			// Check if it's a message event and has a room
+			var targetRoom string
+			if event.Type == model.EventMessage {
+				// Payload is map[string]interface{} after unmarshal if we don't know type?
+				// Wait, we just marshalled it from Message struct.
+				// But here we unmarshal into interface{}.
+				// Let's try to unmarshal payload to Message.
+
+				payloadBytes, _ := json.Marshal(event.Payload)
+				var msg model.Message
+				if err := json.Unmarshal(payloadBytes, &msg); err == nil {
+					targetRoom = msg.Room
+				}
+			}
+
+			if targetRoom == "" {
+				targetRoom = "general"
+			}
+
 			h.mu.Lock()
 			for client := range h.clients {
-				select {
-				case client.send <- message:
-				default:
-					close(client.send)
-					delete(h.clients, client)
+				// Check client room
+				clientRoom := client.Room
+				if clientRoom == "" {
+					clientRoom = "general"
+				}
+
+				if clientRoom == targetRoom {
+					select {
+					case client.send <- message:
+					default:
+						close(client.send)
+						delete(h.clients, client)
+					}
 				}
 			}
 			h.mu.Unlock()
@@ -146,11 +190,11 @@ func (c *Client) writePump() {
 			}
 			w.Write(message)
 
-			// Add queued chat messages to the current websocket message.
-			n := len(c.send)
-			for i := 0; i < n; i++ {
-				w.Write(<-c.send)
-			}
+			// Remove coalescing to ensure each JSON is a separate frame
+			// n := len(c.send)
+			// for i := 0; i < n; i++ {
+			// 	w.Write(<-c.send)
+			// }
 
 			if err := w.Close(); err != nil {
 				return
@@ -260,11 +304,17 @@ func (c *Client) processMessage(content string) {
 		}
 	}
 
+	// Default room is "general" if not set
+	if c.Room == "" {
+		c.Room = "general"
+	}
+
 	msg := model.Message{
 		Sender:        c.user.Username,
 		SenderDisplay: senderName, // senderName contains tags and display name
 		SenderID:      senderID,
 		Content:       content,
+		Room:          c.Room,
 		Timestamp:     time.Now(),
 		IsSystem:      false,
 	}
@@ -272,7 +322,7 @@ func (c *Client) processMessage(content string) {
 	c.hub.store.AddMessage(msg)
 
 	// Log the message
-	log.Printf("Message from %s (%s): %s", c.user.Username, c.user.IPID, content)
+	log.Printf("Message from %s (%s) in %s: %s", c.user.Username, c.user.IPID, c.Room, content)
 
 	// Broadcast
 	broadcastEvent := model.Event{
@@ -316,6 +366,17 @@ func serveWs(hub *Hub, w http.ResponseWriter, r *http.Request) {
 
 	// Send welcome message
 	client.sendSystemMessage(hub.config.WelcomeMessage)
+
+	// Send server info
+	serverInfo := map[string]string{
+		"server_name": hub.config.ServerName,
+	}
+	event := model.Event{
+		Type:    "server_info",
+		Payload: serverInfo,
+	}
+	bytes, _ := json.Marshal(event)
+	client.send <- bytes
 }
 
 func (h *Hub) KickUser(ipid string) bool {

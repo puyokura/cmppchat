@@ -3,3 +3,7 @@ users.json
 serverconfig.json
 messages.json
 logs/
+config.json
+server_config.json
+messages/
+messages/

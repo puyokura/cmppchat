@@ -128,7 +128,7 @@ func (n *Network) SendMessage(content string) tea.Cmd {
 
 type errMsg error
 
-func (n *Network) FetchMessages(host string) ([]model.Message, error) {
+func (n *Network) FetchMessages(host, room string) ([]model.Message, error) {
 	// Handle URL schemes
 	if !strings.Contains(host, "://") {
 		host = "http://" + host
@@ -150,7 +150,7 @@ func (n *Network) FetchMessages(host string) ([]model.Message, error) {
 	// Ensure no trailing slash
 	host = strings.TrimSuffix(host, "/")
 
-	apiURL := host + "/api/messages"
+	apiURL := host + "/api/messages?room=" + url.QueryEscape(room)
 
 	resp, err := http.Get(apiURL)
 	if err != nil {

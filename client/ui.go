@@ -21,6 +21,7 @@ type connectionMsg struct {
 
 type historyFetchMsg struct {
 	host string
+	room string
 }
 
 type historyLoadedMsg struct {
@@ -38,6 +39,10 @@ type modelState struct {
 	// Command History
 	cmdHistory []string
 	historyIdx int
+	// Connection info
+	Host        string
+	ServerName  string
+	currentRoom string
 }
 
 func initialModel(net *Network) modelState {
@@ -48,11 +53,13 @@ func initialModel(net *Network) modelState {
 	ti.Width = 20
 
 	return modelState{
-		network:    net,
-		textInput:  ti,
-		messages:   []string{},
-		cmdHistory: []string{},
-		historyIdx: -1,
+		network:     net,
+		textInput:   ti,
+		messages:    []string{},
+		cmdHistory:  []string{},
+		historyIdx:  -1,
+		currentRoom: "general",
+		ServerName:  "CMPPChat", // Default
 	}
 }
 
@@ -86,6 +93,13 @@ func (m modelState) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		switch msg.Type {
 		case tea.KeyCtrlC, tea.KeyEsc:
 			return m, tea.Quit
+		case tea.KeyUp, tea.KeyDown, tea.KeyPgUp, tea.KeyPgDown:
+			// Disable keyboard scrolling for viewport
+			// Do not pass these keys to viewport.Update
+			// But we still handle history navigation with Up/Down
+		}
+
+		switch msg.Type {
 		case tea.KeyUp:
 			// History: Newest -> Oldest
 			// cmdHistory: [oldest, ..., newest]
@@ -130,7 +144,8 @@ func (m modelState) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if strings.HasPrefix(input, "/") {
 				commands := []string{
 					"/login ", "/register ", "/connect ", "/logout", "/help",
-					"/admin ", "/clan ", "/kick ", "/ban ", "/unconnect",
+					"/admin ", "/clan ", "/kick ", "/ban ", "/disconnect",
+					"/room ", "/member ", "/userinfo ", "/server ",
 				}
 
 				var matches []string
@@ -188,7 +203,7 @@ func (m modelState) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					return m, nil
 				}
 
-				if content == "/unconnect" {
+				if content == "/disconnect" {
 					m.network.Disconnect()
 					m.messages = append(m.messages, "Disconnected.")
 					m.viewport.SetContent(strings.Join(m.messages, "\n"))
@@ -202,20 +217,17 @@ func (m modelState) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case connectionMsg:
 		if msg.connected {
+			m.Host = msg.host
 			// Connected, now fetch history
 			m.loading = true
 			return m, func() tea.Msg {
-				// We need the host used for connection.
-				// For now, let's assume we can get it or pass it.
-				// Since we don't store it easily, let's extract from network or pass in connectionMsg?
-				// Let's modify connectionMsg to carry host.
-				return historyFetchMsg{host: msg.host}
+				return historyFetchMsg{host: msg.host, room: m.currentRoom}
 			}
 		}
 
 	case historyFetchMsg:
 		return m, func() tea.Msg {
-			msgs, err := m.network.FetchMessages(msg.host)
+			msgs, err := m.network.FetchMessages(msg.host, msg.room)
 			if err != nil {
 				return errMsg(err)
 			}
@@ -274,16 +286,69 @@ func (m modelState) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.viewport.SetContent(strings.Join(m.messages, "\n"))
 			m.viewport.GotoBottom()
 			return m, m.network.WaitForMessage
+		} else if msg.Type == "room_join" {
+			// Handle room join
+			payloadBytes, _ := json.Marshal(msg.Payload)
+			var payload map[string]string
+			json.Unmarshal(payloadBytes, &payload)
+
+			newRoom := payload["room"]
+			if newRoom != "" {
+				m.currentRoom = newRoom
+				m.messages = []string{} // Clear messages
+				m.viewport.SetContent("")
+				m.loading = true
+
+				// We need host to fetch messages.
+				return m, func() tea.Msg {
+					return historyFetchMsg{host: m.Host, room: m.currentRoom}
+				}
+			}
+			return m, m.network.WaitForMessage
+		} else if msg.Type == "server_info" {
+			// Handle server info
+			payloadBytes, _ := json.Marshal(msg.Payload)
+			var payload map[string]string
+			json.Unmarshal(payloadBytes, &payload)
+
+			if name, ok := payload["server_name"]; ok {
+				m.ServerName = name
+			}
+			return m, m.network.WaitForMessage
 		}
 		return m, m.network.WaitForMessage
 
 	case errMsg:
 		m.err = msg
-		return m, tea.Quit
+		// Check if it's a disconnect error
+		if strings.Contains(msg.Error(), "closed") || strings.Contains(msg.Error(), "connection reset") || strings.Contains(msg.Error(), "EOF") {
+			m.messages = append(m.messages, "Disconnected from server.")
+		} else {
+			m.messages = append(m.messages, fmt.Sprintf("Error: %v", msg))
+		}
+		m.viewport.SetContent(strings.Join(m.messages, "\n"))
+		m.viewport.GotoBottom()
+		m.loading = false
+		return m, nil
 	}
 
 	m.textInput, tiCmd = m.textInput.Update(msg)
-	m.viewport, vpCmd = m.viewport.Update(msg)
+	// Only update viewport if it's NOT a key message that we want to ignore for scrolling
+	// But we already handled MouseMsg above and returned.
+	// For KeyMsg, we fell through.
+	// We need to ensure we don't call m.viewport.Update(msg) for scrolling keys.
+
+	switch msg := msg.(type) {
+	case tea.KeyMsg:
+		switch msg.Type {
+		case tea.KeyUp, tea.KeyDown, tea.KeyPgUp, tea.KeyPgDown:
+			// Don't update viewport for these keys
+		default:
+			m.viewport, vpCmd = m.viewport.Update(msg)
+		}
+	default:
+		m.viewport, vpCmd = m.viewport.Update(msg)
+	}
 
 	return m, tea.Batch(tiCmd, vpCmd)
 }
@@ -307,7 +372,7 @@ func (m modelState) View() string {
 }
 
 func (m modelState) headerView() string {
-	title := " CMPPChat "
+	title := fmt.Sprintf(" %s [Room: %s] ", m.ServerName, m.currentRoom)
 	style := lipgloss.NewStyle().
 		Foreground(lipgloss.Color("#FFFFFF")).
 		Background(lipgloss.Color("#6C5CE7")). // Nice purple

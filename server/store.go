@@ -11,19 +11,19 @@ import (
 )
 
 type Store struct {
-	Users    map[string]*model.User // Key: Username
-	Messages []model.Message
+	Users    map[string]*model.User     // Key: Username
+	Messages map[string][]model.Message // Key: Room
 	mu       sync.RWMutex
 	userFile string
-	msgFile  string
+	msgDir   string
 }
 
-func NewStore(userFile, msgFile string) *Store {
+func NewStore(userFile, msgDir string) *Store {
 	return &Store{
 		Users:    make(map[string]*model.User),
-		Messages: make([]model.Message, 0),
+		Messages: make(map[string][]model.Message),
 		userFile: userFile,
-		msgFile:  msgFile,
+		msgDir:   msgDir,
 	}
 }
 
@@ -46,14 +46,29 @@ func (s *Store) Load() error {
 		}
 	}
 
-	// Load Messages
-	if _, err := os.Stat(s.msgFile); err == nil {
-		data, err := os.ReadFile(s.msgFile)
-		if err != nil {
-			return err
-		}
-		if err := json.Unmarshal(data, &s.Messages); err != nil {
-			return err
+	// Ensure msgDir exists
+	if err := os.MkdirAll(s.msgDir, 0755); err != nil {
+		return err
+	}
+
+	// Load Messages from msgDir
+	files, err := os.ReadDir(s.msgDir)
+	if err != nil {
+		return err
+	}
+
+	for _, f := range files {
+		if !f.IsDir() && len(f.Name()) > 5 && f.Name()[len(f.Name())-5:] == ".json" {
+			roomName := f.Name()[:len(f.Name())-5]
+			data, err := os.ReadFile(fmt.Sprintf("%s/%s", s.msgDir, f.Name()))
+			if err != nil {
+				continue // Skip bad files
+			}
+			var msgs []model.Message
+			if err := json.Unmarshal(data, &msgs); err != nil {
+				continue
+			}
+			s.Messages[roomName] = msgs
 		}
 	}
 	return nil
@@ -73,17 +88,6 @@ func (s *Store) SaveUsers() error {
 		return err
 	}
 	return os.WriteFile(s.userFile, data, 0644)
-}
-
-func (s *Store) SaveMessages() error {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-
-	data, err := json.MarshalIndent(s.Messages, "", "  ")
-	if err != nil {
-		return err
-	}
-	return os.WriteFile(s.msgFile, data, 0644)
 }
 
 func (s *Store) RegisterUser(username, password, ipid string) (*model.User, error) {
@@ -146,26 +150,59 @@ func (s *Store) Authenticate(username, password string) (*model.User, error) {
 	return user, nil
 }
 
+func (s *Store) SaveRoomMessages(room string) error {
+	// Assumes lock is held by caller if needed, but here we use RLock for reading messages?
+	// No, this is internal helper usually.
+	// Let's make it public but careful about locks.
+	// Actually, AddMessage holds lock.
+	// We need an internal save.
+
+	msgs := s.Messages[room]
+	data, err := json.MarshalIndent(msgs, "", "  ")
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(fmt.Sprintf("%s/%s.json", s.msgDir, room), data, 0644)
+}
+
 func (s *Store) AddMessage(msg model.Message) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	s.Messages = append(s.Messages, msg)
+	room := msg.Room
+	if room == "" {
+		room = "general"
+	}
 
-	// Save messages (internal)
-	data, err := json.MarshalIndent(s.Messages, "", "  ")
+	s.Messages[room] = append(s.Messages[room], msg)
+
+	return s.saveRoomMessagesInternal(room)
+}
+
+func (s *Store) saveRoomMessagesInternal(room string) error {
+	msgs := s.Messages[room]
+	data, err := json.MarshalIndent(msgs, "", "  ")
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(s.msgFile, data, 0644)
+	return os.WriteFile(fmt.Sprintf("%s/%s.json", s.msgDir, room), data, 0644)
 }
 
-func (s *Store) GetMessages() []model.Message {
+func (s *Store) GetMessages(room string) []model.Message {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
-	// Return a copy to be safe
-	msgs := make([]model.Message, len(s.Messages))
-	copy(msgs, s.Messages)
-	return msgs
+	if room == "" {
+		room = "general"
+	}
+
+	// Return copy to avoid race conditions if caller modifies?
+	// Slice is reference.
+	// But we usually just read.
+	// Let's return the slice directly for now, or copy if needed.
+	// Copy is safer.
+	src := s.Messages[room]
+	dest := make([]model.Message, len(src))
+	copy(dest, src)
+	return dest
 }

@@ -88,22 +88,103 @@ func compressLog() {
 }
 
 func main() {
+	// Check for init command
+	if len(os.Args) > 1 && os.Args[1] == "init" {
+		fmt.Println("Initializing server...")
+
+		// Create or update config
+		config := NewConfig("server_config.json")
+		if err := config.Load(); err != nil {
+			// If load fails (e.g. file doesn't exist), we save the defaults.
+			// If it exists but is invalid, we might overwrite or error?
+			// Load() returns error if file doesn't exist usually.
+			// Let's force save if it didn't exist.
+			if os.IsNotExist(err) {
+				if err := config.Save(); err != nil {
+					fmt.Printf("Failed to create config: %v\n", err)
+					os.Exit(1)
+				}
+				fmt.Println("Created server_config.json")
+			} else {
+				fmt.Printf("Failed to load config: %v\n", err)
+				os.Exit(1)
+			}
+		} else {
+			// Loaded successfully, save back to ensure new fields are added
+			if err := config.Save(); err != nil {
+				fmt.Printf("Failed to update config: %v\n", err)
+				os.Exit(1)
+			}
+			fmt.Println("Updated server_config.json")
+		}
+
+		// Create messages directory
+		if err := os.MkdirAll("messages", 0755); err != nil {
+			fmt.Printf("Failed to create messages directory: %v\n", err)
+			os.Exit(1)
+		}
+		fmt.Println("Created messages/ directory")
+
+		// Create general room if not exists
+		if _, err := os.Stat("messages/general.json"); os.IsNotExist(err) {
+			emptyMsgs := []interface{}{} // Empty array
+			data, _ := json.MarshalIndent(emptyMsgs, "", "  ")
+			os.WriteFile("messages/general.json", data, 0644)
+			fmt.Println("Created messages/general.json")
+		}
+
+		// Create users.json if not exists
+		if _, err := os.Stat("users.json"); os.IsNotExist(err) {
+			emptyUsers := []interface{}{}
+			data, _ := json.MarshalIndent(emptyUsers, "", "  ")
+			os.WriteFile("users.json", data, 0644)
+			fmt.Println("Created users.json")
+		}
+
+		fmt.Println("Initialization complete. You can now run ./server")
+		os.Exit(0)
+	}
+
 	logFile, err := setupLogging()
 	if err != nil {
 		fmt.Printf("Failed to setup logging: %v\n", err)
-		return
+		os.Exit(1)
 	}
-	defer logFile.Close()
 
-	configFile := flag.String("config", "serverconfig.json", "Path to configuration file")
+	// MultiWriter for log to file and console
+	mw := io.MultiWriter(os.Stdout, logFile)
+	log.SetOutput(mw)
+
+	// Graceful shutdown handling
+	c := make(chan os.Signal, 1)
+	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
+	go func() {
+		<-c
+		log.Println("Shutting down server...")
+		logFile.Close()
+
+		// Compress log
+		compressLog()
+		os.Remove("logs/server.log") // Remove original after compression
+
+		os.Exit(0)
+	}()
+
 	flag.Parse()
 
-	config := NewConfig(*configFile)
+	config := NewConfig("server_config.json")
 	if err := config.Load(); err != nil {
-		log.Printf("Error loading config: %v", err)
+		log.Printf("Config load error (using defaults): %v", err)
+		// Save defaults if failed
+		config.Save()
 	}
 
-	store := NewStore("users.json", "messages.json")
+	// Ensure messages dir exists
+	if err := os.MkdirAll("messages", 0755); err != nil {
+		log.Fatal(err)
+	}
+
+	store := NewStore("users.json", "messages")
 	if err := store.Load(); err != nil {
 		log.Printf("Error loading store: %v", err)
 	}
@@ -141,7 +222,12 @@ func main() {
 		w.Header().Set("Content-Type", "application/json")
 		w.Header().Set("Access-Control-Allow-Origin", "*") // Allow CORS
 
-		messages := store.GetMessages()
+		room := r.URL.Query().Get("room")
+		if room == "" {
+			room = "general"
+		}
+
+		messages := store.GetMessages(room)
 		// Optional: limit query param ?limit=100
 		// For now return all
 
