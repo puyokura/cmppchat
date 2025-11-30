@@ -1,14 +1,26 @@
-# 前提
-このアプリケーションは、**Go言語**で開発され、コンパイルによって単一の実行ファイルとして配布されることを前提とします。これにより、ユーザーはGoランタイムがインストールされていない環境でもアプリを直接実行できます。
+# CMPPChat
+
+[![GitHub release](https://img.shields.io/github/v/release/puyokura/cmppchat)](https://github.com/puyokura/cmppchat/releases/latest)
+
+コマンドライン上で動作するリアルタイムチャットアプリケーション。Go言語で開発され、WebSocketを使用した軽量なチャットシステムです。
+
+## 特徴
+
+- 🚀 **軽量・高速**: Go言語製のシングルバイナリ
+- 💬 **リアルタイムチャット**: WebSocketによる低遅延通信
+- 🏠 **完全ローカル**: 外部サービス不要、ホストPC上で完結
+- 🎨 **TUI**: bubbletea/lipglossによる美しいターミナルUI
+- 🔐 **ユーザー認証**: パスワードハッシュ化、管理者機能
+- 🌐 **複数ルーム対応**: ルームごとのメッセージ管理
 
 ## ダウンロード
 
 ### 最新リリース
-[![GitHub release](https://img.shields.io/github/v/release/puyokura/cmppchat)](https://github.com/puyokura/cmppchat/releases/latest)
 
 [Releases ページ](https://github.com/puyokura/cmppchat/releases)から最新版をダウンロードできます。
 
 ### 開発版 (Nightly Builds)
+
 最新の開発版は以下からダウンロードできます：
 
 | OS | アーキテクチャ | ダウンロード |
@@ -18,92 +30,162 @@
 | macOS | Apple Silicon (ARM64) | [cmppchat-darwin-arm64.zip](https://nightly.link/puyokura/cmppchat/workflows/release/main/cmppchat-darwin-arm64.zip) |
 | Windows | x64 | [cmppchat-windows-amd64.zip](https://nightly.link/puyokura/cmppchat/workflows/release/main/cmppchat-windows-amd64.zip) |
 
----
+## クイックスタート
 
-# AIへのプロンプト：コマンドプロンプトベースのチャットアプリ開発 (Go版)
+### 1. サーバーの初期化と起動
 
-以下の要件と構想に基づき、コマンドプロンプト（ターミナル）上で動作するチャットアプリケーションを開発してください。
+```bash
+# 初回のみ: 設定ファイルとディレクトリを生成
+./server init
 
-## 1. アプリケーションの概要
+# サーバーを起動
+./server
 
-* **名称**: コマンドプロンプトチャット (Go版)
-* **ターゲット環境**: Windowsのコマンドプロンプト、macOS/Linuxのターミナル
-* **コンセプト**: 無料重視で、技術的な興味を持つユーザー向けのユニークなテキストベースチャット体験を提供する。
-* **主要な機能**:
-    * リアルタイムチャット (WebSocket)
-    * ユーザー認証とアカウント管理 (ローカル保存)
-    * 管理者によるユーザー管理機能
-    * 整形されたメッセージ表示とカラーリング
-    * **ホストPCによるサーバー機能**: 外部クラウド(Supabase等)を使用せず、ホストPC上でサーバーを起動し、データを管理する。
+# 外部からアクセス可能にする場合（ngrok等）
+./server --http
+```
 
-## 2. 開発における制約と優先順位
+サーバーはデフォルトで `localhost:8999` で起動します。
 
-* **完全ローカル運用**: 外部BaaSやDBサービスを使用せず、全てローカル環境で完結させる。
-* **シングルバイナリ**: Goの特性を活かし、サーバー・クライアント共に単一の実行ファイルとして配布可能にする（あるいは `server` と `client` の2つのバイナリ）。
-* **リアルタイム性**: WebSocketを使用し、低遅延なメッセージ送受信を実現する。
-* **プロジェクトの軽量化**: 依存関係を最小限に抑える。
+### 2. クライアントの起動
 
-## 3. 主要な技術スタック
+```bash
+./client
+```
 
-以下の技術スタックを必須とします。
+起動後、以下のコマンドでサーバーに接続：
 
-* **開発言語**: **Go (Golang)**
-* **アーキテクチャ**: **クライアント・サーバーモデル**
-    * **サーバー**: ホストPC上で動作し、WebSocket接続を受け付ける。
-    * **クライアント**: TUI (Text User Interface) を提供し、サーバーに接続する。
-* **データ保存**: **ローカルJSONファイル**
-    * `users.json`: ユーザー情報（ユーザー名、ハッシュ化されたパスワード、権限、IP風ID）
-    * `messages.json`: チャット履歴
-    * これらをサーバー実行ディレクトリに保存・読み込みする。
-* **通信プロトコル**: **WebSocket** (`github.com/gorilla/websocket` 推奨)
-* **クライアントサイド (TUIライブラリ)**: **`bubbletea`** (`github.com/charmbracelet/bubbletea`)
-    * Go言語でモダンなTUIを構築するための標準的なライブラリ。
-    * `lipgloss` (`github.com/charmbracelet/lipgloss`) を使用してスタイリングを行う。
+```
+/connect localhost:8999
+```
 
-## 4. 画面構成とUI/UX設計
+### 3. ユーザー登録とログイン
 
-ターミナルの特性を活かし、情報が整理され、操作しやすいUIを設計する。
+初回利用時はユーザー登録が必要です：
 
-* **全体レイアウト**:
-    * **上部**: チャットメッセージが表示される「チャット表示エリア」。
-    * **下部**: 常に画面の最下部に固定される「メッセージ入力エリア」。
-    * **最下部（オプション）**: ステータスバー（接続先サーバー、ログインユーザー名など）。
-* **メッセージ表示形式**:
-    各メッセージは以下の厳密に整形された形式で一列に揃えて表示される。
-    ```
-    | UserName   | 000.000.0.000 | メッセージの内容がここに表示されます。
-    |            |               | 長いメッセージは自動でここで改行されます。
-    | System     | 0.0.0.0       | ユーザーがチャットに参加しました。
-    ```
-    * **`UserName`**: 10文字固定（パディング/切り詰め）。
-    * **`000.000.0.000`**: IPアドレス風ID。15文字固定。
-    * **`メッセージ`**: ワードラップ対応。2行目以降はインデント。
-* **メッセージへの色付け**:
-    * メッセージ本文内で `$#RRGGBBテキスト$` のようなカスタムタグを使用可能にする。
-    * クライアント側でパースし、`lipgloss` 等を用いて色付け表示する。
-* **入力プロンプト**: `>>` プロンプトと点滅カーソル。
+```
+/register <ユーザー名> <パスワード>
+```
 
-## 5. コマンド機能
+2回目以降はログイン：
 
-メッセージ入力エリアから `/` で始まるコマンドを入力して操作する。
+```
+/login <ユーザー名> <パスワード>
+```
 
-* **ユーザーコマンド**:
-    * **`/register <username> <password>`**: サーバーの `users.json` に新規登録する。
-    * **`/login <username> <password>`**: サーバーで認証を行い、トークン等を発行してログイン状態にする。
-    * **`/logout`**: ログアウトする。
-    * **`/name <new_name>`**: 表示名を変更する。
-    * **`/help`**: ヘルプ表示。
+## 基本コマンド
 
-* **管理者コマンド**:
-    `users.json` 内で管理者権限を持つユーザーのみ実行可能。
-    * **`/admin <password>`**: 管理者権限への昇格（必要な場合。最初からadminロールを持っているなら不要かもしれないが、仕様として残す）。
-    * **`/add <ip_id> <role>`**: 権限付与。
-    * **`/rm <ip_id> <role>`**: 権限剥奪。
-    * **`/kick <ip_id>`**: 強制切断。
-    * **`/ban <ip_id>`**: `users.json` (または `banned.json`) に記録し、接続を拒否する。
+### ユーザーコマンド
 
-## 6. その他考慮事項
+| コマンド | 説明 |
+|---------|------|
+| `/register <user> <pass>` | 新規ユーザー登録 |
+| `/login <user> <pass>` | ログイン |
+| `/logout` | ログアウト |
+| `/name <new_name>` | 表示名の変更 |
+| `/connect <host:port>` | サーバーに接続 |
+| `/disconnect` | サーバーから切断 |
+| `/help` | ヘルプ表示 |
 
-* **IPアドレス風IDの生成**: ユーザー登録時にランダム生成し、`users.json` に保存して固定する。
-* **エラーハンドリング**: サーバー接続エラー、認証エラーなどをTUI上で適切に通知する。
-* **セキュリティ**: パスワードは必ずハッシュ化して保存すること（平文保存禁止）。
+### ルーム管理コマンド
+
+| コマンド | 説明 |
+|---------|------|
+| `/room join <room_name>` | ルームに参加 |
+| `/room list` | 利用可能なルーム一覧 |
+| `/room create <room_name>` | 新規ルーム作成（管理者のみ） |
+| `/room remove <room_name>` | ルーム削除（管理者のみ） |
+
+### 情報表示コマンド
+
+| コマンド | 説明 |
+|---------|------|
+| `/member list [room]` | オンラインユーザー一覧 |
+| `/userinfo <username>` | ユーザー詳細情報 |
+| `/server info` | サーバー情報 |
+
+### 管理者コマンド
+
+| コマンド | 説明 |
+|---------|------|
+| `/admin <password>` | 管理者権限の取得 |
+| `/kick <ip_id>` | ユーザーをキック |
+| `/ban <ip_id>` | ユーザーをBAN |
+| `/clan create <tag> <color>` | クラン作成 |
+| `/clan add <tag> <username>` | クランにユーザー追加 |
+
+## ビルド方法（開発者向け）
+
+Go 1.21以上が必要です。
+
+```bash
+# サーバーとクライアントをビルド
+go build -o server ./server
+go build -o client ./client
+
+# または test ディレクトリにビルド
+go build -o ./test/server ./server && go build -o ./test/client ./client
+```
+
+## 設定ファイル
+
+### server_config.json
+
+サーバーの設定ファイル。`./server init` で自動生成されます。
+
+```json
+{
+  "port": "8999",
+  "host": "localhost",
+  "admin_password": "admin",
+  "welcome_message": "Welcome to CMPPChat!",
+  "server_name": "CMPPChat Server",
+  "rooms": ["general"]
+}
+```
+
+### データファイル
+
+- `users.json`: ユーザー情報（自動生成）
+- `messages/<room_name>.json`: ルームごとのメッセージ履歴（自動生成）
+- `logs/`: サーバーログ（自動生成、圧縮保存）
+
+## 外部ホスティング（ngrok等）
+
+`--http` フラグを使用すると、全インターフェース（0.0.0.0）でリッスンします：
+
+```bash
+./server --http
+```
+
+ngrokでポート転送：
+
+```bash
+ngrok http 8999
+```
+
+クライアントから接続：
+
+```
+/connect <ngrok-url>:8999
+```
+
+## セキュリティに関する注意
+
+- パスワードはbcryptでハッシュ化されて保存されます
+- 通信は平文WebSocketです（TLS未対応）
+- 公共ネットワークでの使用には注意してください
+- 管理者パスワードは `server_config.json` で変更可能です
+
+## ライセンス
+
+MIT License
+
+## 開発
+
+このプロジェクトはGo言語で開発されています。
+
+主な依存ライブラリ：
+- [gorilla/websocket](https://github.com/gorilla/websocket) - WebSocket通信
+- [bubbletea](https://github.com/charmbracelet/bubbletea) - TUIフレームワーク
+- [lipgloss](https://github.com/charmbracelet/lipgloss) - ターミナルスタイリング
