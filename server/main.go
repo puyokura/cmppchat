@@ -17,8 +17,6 @@ import (
 	"time"
 )
 
-var addr = flag.String("addr", ":8080", "http service address")
-
 func setupLogging() (*os.File, error) {
 	if err := os.MkdirAll("logs", 0755); err != nil {
 		return nil, err
@@ -170,6 +168,7 @@ func main() {
 		os.Exit(0)
 	}()
 
+	httpFlag := flag.Bool("http", false, "Expose server on all interfaces (0.0.0.0)")
 	flag.Parse()
 
 	config := NewConfig("server_config.json")
@@ -177,6 +176,12 @@ func main() {
 		log.Printf("Config load error (using defaults): %v", err)
 		// Save defaults if failed
 		config.Save()
+	}
+
+	// Override Host if --http is set
+	if *httpFlag {
+		config.Host = "0.0.0.0"
+		log.Println("HTTP Mode enabled: Listening on all interfaces (0.0.0.0)")
 	}
 
 	// Ensure messages dir exists
