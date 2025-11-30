@@ -1,6 +1,25 @@
 # 前提
 このアプリケーションは、**Go言語**で開発され、コンパイルによって単一の実行ファイルとして配布されることを前提とします。これにより、ユーザーはGoランタイムがインストールされていない環境でもアプリを直接実行できます。
 
+## ダウンロード
+
+### 最新リリース
+[![GitHub release](https://img.shields.io/github/v/release/puyokura/cmppchat)](https://github.com/puyokura/cmppchat/releases/latest)
+
+[Releases ページ](https://github.com/puyokura/cmppchat/releases)から最新版をダウンロードできます。
+
+### 開発版 (Nightly Builds)
+最新の開発版は以下からダウンロードできます：
+
+| OS | アーキテクチャ | ダウンロード |
+|---|---|---|
+| Linux | x64 | [cmppchat-linux-amd64.zip](https://nightly.link/puyokura/cmppchat/workflows/release/main/cmppchat-linux-amd64.zip) |
+| macOS | Intel (x64) | [cmppchat-darwin-amd64.zip](https://nightly.link/puyokura/cmppchat/workflows/release/main/cmppchat-darwin-amd64.zip) |
+| macOS | Apple Silicon (ARM64) | [cmppchat-darwin-arm64.zip](https://nightly.link/puyokura/cmppchat/workflows/release/main/cmppchat-darwin-arm64.zip) |
+| Windows | x64 | [cmppchat-windows-amd64.zip](https://nightly.link/puyokura/cmppchat/workflows/release/main/cmppchat-windows-amd64.zip) |
+
+---
+
 # AIへのプロンプト：コマンドプロンプトベースのチャットアプリ開発 (Go版)
 
 以下の要件と構想に基づき、コマンドプロンプト（ターミナル）上で動作するチャットアプリケーションを開発してください。
