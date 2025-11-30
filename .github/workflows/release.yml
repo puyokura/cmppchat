@@ -61,12 +61,12 @@ jobs:
       - name: Create archive (Unix)
         if: matrix.goos != 'windows'
         run: |
-          tar -czf ${{ matrix.artifact_name }}.tar.gz server client README.md how_to_use.md
+          tar -czf ${{ matrix.artifact_name }}.tar.gz server client README.md
 
       - name: Create archive (Windows)
         if: matrix.goos == 'windows'
         run: |
-          7z a ${{ matrix.artifact_name }}.zip server.exe client.exe README.md how_to_use.md
+          7z a ${{ matrix.artifact_name }}.zip server.exe client.exe README.md
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
